@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kalkulator AKL</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <style>
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+      background-color: #fff;
+      margin: 10% auto;
+      padding: 20px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 400px;
+    }
+    .modal input {
+      width: 100%;
+      padding: 8px;
+      margin: 6px 0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    .modal .btn-row {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 12px;
+    }
+    .modal .btn-row button {
+      flex: 1;
+      margin: 0 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="calculator">
+    <div class="title">Kalkulator AKL 💕</div>
+    <div id="display" class="display">0</div>
+    <div id="history" class="history"></div>
+
+    <!-- TAB SWITCHER -->
+    <div class="tab-buttons">
+      <button class="tab-btn active" data-tab="basic">Dasar</button>
+      <button class="tab-btn" data-tab="memory">Memori</button>
+      <button class="tab-btn" data-tab="fungsi">Fungsi</button>
+      <button class="tab-btn" data-tab="stat">Statistik</button>
+      <button class="tab-btn" data-tab="tvm">TVM</button>
+      <button class="tab-btn" data-tab="depresiasi">Depresiasi</button>
+      <button class="tab-btn" data-tab="pajak">Pajak</button>
+      <button class="tab-btn" data-tab="export">Ekspor</button>
+    </div>
+
+    <div class="buttons"></div>
+  </div>
+
+  <!-- Modal TVM -->
+  <div id="modalTVM" class="modal">
+    <div class="modal-content">
+      <h4 id="modalTVMTitle">TVM Input</h4>
+      <input id="tvm-pv" placeholder="PV (Present Value)" type="number" />
+      <input id="tvm-fv" placeholder="FV (Future Value)" type="number" />
+      <input id="tvm-pmt" placeholder="PMT (Pembayaran)" type="number" />
+      <input id="tvm-i" placeholder="I/Y (Bunga % per periode)" type="number" />
+      <input id="tvm-n" placeholder="N (Jumlah Periode)" type="number" />
+      <div class="btn-row">
+        <button onclick="submitTVM()">Hitung</button>
+        <button onclick="closeModal('modalTVM')">Batal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Depresiasi -->
+  <div id="modalDep" class="modal">
+    <div class="modal-content">
+      <h4 id="modalDepTitle">Input Depresiasi</h4>
+      <input id="dep-cost" placeholder="Harga Awal (Cost)" type="number" />
+      <input id="dep-salvage" placeholder="Nilai Akhir (Salvage)" type="number" />
+      <input id="dep-life" placeholder="Umur (tahun)" type="number" />
+      <input id="dep-year" placeholder="Tahun ke-berapa" type="number" />
+      <div class="btn-row">
+        <button onclick="submitDep()">Hitung</button>
+        <button onclick="closeModal('modalDep')">Batal</button>
+      </div>
+    </div>
+  </div>
+  <!-- Modal Pajak -->
+  <div id="modalTax" class="modal">
+    <div class="modal-content">
+      <h4 id="modalTaxTitle">Pajak</h4>
+      <input id="tax-rate" placeholder="Tarif Pajak (%)" type="number" />
+      <div class="btn-row">
+        <button onclick="submitTax()">Hitung</button>
+        <button onclick="closeModal('modalTax')">Batal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Margin -->
+  <div id="modalMargin" class="modal">
+    <div class="modal-content">
+      <h4 id="modalMarginTitle">Margin / Markup</h4>
+      <input id="margin-cost" placeholder="Harga Pokok (Cost)" type="number" />
+      <input id="margin-price" placeholder="Harga Jual" type="number" />
+      <div class="btn-row">
+        <button onclick="submitMargin()">Hitung</button>
+        <button onclick="closeModal('modalMargin')">Batal</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script src="script.js"></script>
+  <script>
+    const tabs = {
+      basic: [
+        "C", "CE", "←", "/",
+        "7", "8", "9", "*",
+        "4", "5", "6", "-",
+        "1", "2", "3", "+",
+        "0", "00", ".", "%",
+        "±", "√", "x²", "1/x",
+        "="
+      ],
+
+
+      memory: ["MC", "MR", "MS", "M+", "M-"],
+      fungsi: ["Margin", "Markup"],
+      stat: ["Σx", "Mean", "σ"],
+      tvm: ["PV", "FV", "PMT"],
+      depresiasi: ["Garis Lurus", "Saldo Menurun", "SYD"],
+      pajak: ["TAX+", "TAX-"],
+      export: ["Export PDF", "Export Excel"]
+    };
+
+    let currentTVM = "FV";
+    function renderButtons(tab) {
+    const container = document.querySelector(".buttons");
+    container.innerHTML = "";
+    const group = document.createElement("div");
+    group.className = "button-grid kalkulasi-dasar";
+
+    tabs[tab].forEach(label => {
+      const btn = document.createElement("button");
+      btn.textContent = label;
+
+      // Tambah class untuk tombol "=" agar 4 kolom
+      if (label === "=") {
+        btn.classList.add("equal-full");
+      }
+
+      btn.addEventListener("click", () => {
+        if (label === "PV" || label === "FV" || label === "PMT") {
+          currentTVM = label;
+          document.getElementById("modalTVMTitle").textContent = `Hitung ${label}`;
+          document.getElementById("modalTVM").style.display = "block";
+        } else if (["Garis Lurus", "Saldo Menurun", "SYD"].includes(label)) {
+          document.getElementById("modalDepTitle").textContent = `Metode ${label}`;
+          document.getElementById("modalDep").dataset.method = label;
+          document.getElementById("modalDep").style.display = "block";
+        } else if (["TAX+", "TAX-"].includes(label)) applyTax(label);
+        else if (["Margin", "Markup"].includes(label)) calculateMargin(label);
+        else if (label === "Export PDF") exportToPDF();
+        else if (label === "Export Excel") exportToExcel();
+        else handleClick(label);
+      });
+
+      group.appendChild(btn);
+    });
+    container.appendChild(group);
+  }
+
+
+    function closeModal(id) {
+      document.getElementById(id).style.display = "none";
+    }
+
+    function submitTVM() {
+      let PV = parseFloat(document.getElementById("tvm-pv").value) || 0;
+      let FV = parseFloat(document.getElementById("tvm-fv").value) || 0;
+      let PMT = parseFloat(document.getElementById("tvm-pmt").value) || 0;
+      let I = parseFloat(document.getElementById("tvm-i").value) || 0;
+      let N = parseFloat(document.getElementById("tvm-n").value) || 0;
+      let rate = I / 100;
+      let result = 0;
+
+      if (currentTVM === "FV") {
+        result = PV * Math.pow(1 + rate, N) + PMT * ((Math.pow(1 + rate, N) - 1) / rate);
+      } else if (currentTVM === "PV") {
+        result = (FV / Math.pow(1 + rate, N)) - PMT * ((Math.pow(1 + rate, N) - 1) / (rate * Math.pow(1 + rate, N)));
+      } else if (currentTVM === "PMT") {
+        result = (FV - PV * Math.pow(1 + rate, N)) * rate / (Math.pow(1 + rate, N) - 1);
+      }
+
+      current = result.toFixed(2);
+      updateDisplay();
+      updateHistory(`${currentTVM} = ${current}`);
+      closeModal("modalTVM");
+    }
+
+    function submitDep() {
+      let cost = parseFloat(document.getElementById("dep-cost").value) || 0;
+      let salvage = parseFloat(document.getElementById("dep-salvage").value) || 0;
+      let life = parseInt(document.getElementById("dep-life").value) || 1;
+      let year = parseInt(document.getElementById("dep-year").value) || 1;
+      let method = document.getElementById("modalDep").dataset.method;
+      let result = 0;
+
+      if (method === "Garis Lurus") {
+        result = (cost - salvage) / life;
+      } else if (method === "Saldo Menurun") {
+        const rate = 2 / life;
+        result = cost * Math.pow(1 - rate, year - 1) * rate;
+      } else if (method === "SYD") {
+        const syd = (life * (life + 1)) / 2;
+        result = ((cost - salvage) * (life - year + 1)) / syd;
+      }
+
+      current = result.toFixed(2);
+      updateDisplay();
+      updateHistory(`${method} Tahun ${year}: ${current}`);
+      closeModal("modalDep");
+    }
+
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        renderButtons(btn.dataset.tab);
+      });
+    });
+
+    renderButtons("basic");
+  </script>
+</body>
+</html>

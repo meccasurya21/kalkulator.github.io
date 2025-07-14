@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Akuntansi - Kalkulator AKL</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="calculator">
+    <div class="title">Fungsi Akuntansi 📈</div>
+    <div id="display" class="display">0</div>
+    <div id="history" class="history"></div>
+    <div class="buttons">
+      <button onclick="calculateTVM('PV')">PV</button>
+      <button onclick="calculateTVM('FV')">FV</button>
+      <button onclick="calculateTVM('PMT')">PMT</button>
+      <button onclick="calculateTVM('I/Y')">I/Y</button>
+      <button onclick="calculateTVM('N')">N</button>
+      <a href="index.html"><button class="clear">← Kembali</button></a>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
